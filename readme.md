@@ -40,7 +40,7 @@ The type_descriptor (later saved as a TYPE* but it is essentially a char*) is a 
 |`INT64`|`'I'`|`int64_t`
 |`INT32`|`'i'`|`int32_t`
 |`RATIO`|`'R'`|`Ratio`
-|`EOTS`|`'\0'`|End-Of-TypeString. Litterally the NULL Character.
+|`EOTS`|`'\0'`|End-Of-TypeString. Litterally the `NULL` Character.
 
 #### Comment on the Ratio Type
 This type was specifically made for this library to safely send floats. Use the functions `Ratio to_ratio(float src)` and `double from_ratio(Ratio src)` to use. Essentially just a `uint64_t` and an `int64_t` which make up numerator and denominator. 
