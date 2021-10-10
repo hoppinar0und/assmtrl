@@ -1,7 +1,7 @@
 #include "assmtrl.hpp"
 
-size_t PACKAGE_MAXSIZE = 1024;
-size_t MAXDEPTH = 64;
+size_t SHTP_PACKAGE_MAXSIZE = 1024;
+size_t SHTP_MAXDEPTH = 64;
 
 void* ptr_offset(void* ptr, size_t offset) {
     return (void*)((uint64_t)ptr + offset);
@@ -53,7 +53,7 @@ size_t descriptorlen(Type* type_descriptor) {
     return strlen((char*)type_descriptor);
 }
 
-size_t calc_length(Type* type_descriptor) {
+Error create_package(PackageType package_type, void* src, Package* dest) {
     size_t _return;
     Type* buffer = (Type*)malloc(MAXDEPTH);
 
@@ -64,9 +64,9 @@ size_t calc_length(Type* type_descriptor) {
     bool eval_array = false;
     Type arrytype;
 
-    for(int i = 0; i < descriptorlen(type_descriptor); i++) {
+    for(int i = 0; i < descriptorlen(package_type.type_descriptor); i++) {
 
-        switch(type_descriptor[i]) {
+        switch(package_type.type_descriptor[i]) {
             case STRUCT:
                 struct_depth++;
                 buffer[struct_depth + array_depth - 1] = STRUCT;
@@ -89,7 +89,7 @@ size_t calc_length(Type* type_descriptor) {
             case UINT32:
             case INT64:
             case INT32:
-            if(type_descriptor[i+1] == A_LIMITER) {
+            if(package_type.type_descriptor[i+1] == A_LIMITER) {
                 /* DO ARRAY STUFF */
             } else {
                 /* DO NORMAL STUFF */
@@ -101,14 +101,19 @@ size_t calc_length(Type* type_descriptor) {
                 break;
         }
 
-        if(type_descriptor[i + 1] == '(' || '[') {
+        if(package_type.type_descriptor[i + 1] == '(' || '[') {
             
         }
     }
 
     free(buffer);
-    return _return;
+    return ALL_GOOD;
 }
 
-Error create_package(char* package_type_name, Type* type_descriptor, void* src_ptr, Package* dest_ptr);
-Error send_package(socket_t socket_fd, Package package);
+Error create_package(char* package_type_name, Type* type_descriptor, void* src_ptr, Package* dest_ptr) {
+    return ALL_GOOD;
+}
+
+Error send_package(socket_t socket_fd, Package package) {
+    return ALL_GOOD;
+}

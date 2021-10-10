@@ -1,3 +1,6 @@
+#ifndef ASSMTRL_H
+#define ASSMTRL_H
+
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
@@ -6,13 +9,13 @@
  *  Defines the maximum size a package can have in bytes. 
  *  For security purposes, it should only be as large as needed.
  */
-extern size_t SHTP_PACKAGE_MAXSIZE;
+extern size_t ASSMTRL_PACKAGE_MAXSIZE;
 
 /*
  *  Defines the maximum depth the parser will attempt to parse a struct nest before it returns an error.
  *  For security purposes, when parsing a new package, this should only be as deep as needed.
  */
-extern size_t SHTP_MAXDEPTH;
+extern size_t ASSMTRL_MAXDEPTH;
 
 typedef int socket_t;
 
@@ -36,6 +39,8 @@ typedef enum : int {
   ALL_GOOD = -1,
   RECEIVER_HASH_CORRUPTED = -100,
   PARSER_INVALID_ELEMENT = -200,
+  PARSER_MISSING_STRUCT_CLOSER = -301,
+  PARSER_MISSING_ARRAY_CLOSER = -303,
 } Error;
 
 typedef void* Package;
@@ -47,7 +52,7 @@ typedef struct {
 } PackageType;
 
 /* Prints Error and returns errcode */
-int error(Error errcode);
+Error error(Error errcode);
 
 /* Returns ptr that is offset by offset from ptr */
 void* ptr_offset(void* ptr, size_t offset);
@@ -73,7 +78,7 @@ PackageType create_package_type(char* package_type_name, char* type_descriptor);
  *  Handle these typenames like you would librarly macros: PREFIXES AND FULL CAPS ARE ENCOURAGED!
  *  Also returns a status code once done.
  */
-Error create_package(PackageType package_type, void* src_ptr, Package* dest_ptr);
+Error create_package(PackageType package_type, void* src, Package* dest) {
 
 /*  Writes package onto a socket file descriptor
  *  Also returns a status code once done.
@@ -88,3 +93,5 @@ void set_maxsize(size_t maxsize);
  *  Also returns a status code once done.
  */
 int retrieve_package(char* package_type_name, socket_t socket_fd, void* buffer);
+
+#endif //ASSMTRL_H
