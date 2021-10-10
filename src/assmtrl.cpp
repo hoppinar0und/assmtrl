@@ -1,7 +1,7 @@
 #include "assmtrl.hpp"
 
-size_t SHTP_PACKAGE_MAXSIZE = 1024;
-size_t SHTP_MAXDEPTH = 64;
+size_t ASSMTRL_PACKAGE_MAXSIZE = 1024;
+size_t ASSMTRL_MAXDEPTH = 64;
 
 void* ptr_offset(void* ptr, size_t offset) {
     return (void*)((uint64_t)ptr + offset);
@@ -54,34 +54,46 @@ size_t descriptorlen(Type* type_descriptor) {
 }
 
 Error create_package(PackageType package_type, void* src, Package* dest) {
-    size_t _return;
-    Type* buffer = (Type*)malloc(MAXDEPTH);
+    void* buffer = malloc(ASSMTRL_PACKAGE_MAXSIZE);
+
+    size_t size = sizeof(uint64_t)                              // Initial eight bytes of package which holds the total size
+                + strlen(package_type.package_type_name)        // Cstring that holds the name of the package type
+                + descriptorlen(package_type.type_descriptor)   // Descriptor string that describes the data inside this specific package_type
+                + sizeof(char);                                 // The null-termination character of the Cstring.
+    
+    size_t  writehead = size,  // Offset bytes from dest to where we will write next.
+            readhead = 0;   // Offset bytes from src to where we have to read next.
+
+    Type* typebuffer = (Type*)malloc(ASSMTRL_MAXDEPTH);
 
     // Control flow variables
     size_t struct_depth = 0;
     size_t array_depth = 0;
-    size_t limiter_depth = 0;
     bool eval_array = false;
     Type arrytype;
 
     for(int i = 0; i < descriptorlen(package_type.type_descriptor); i++) {
-
         switch(package_type.type_descriptor[i]) {
             case STRUCT:
                 struct_depth++;
-                buffer[struct_depth + array_depth - 1] = STRUCT;
-                break;
+                typebuffer[struct_depth + array_depth - 1] = STRUCT;
+            break;
 
             case EOTS:
-
+                if(struct_depth != 0) {
+                    return error(PARSER_MISSING_STRUCT_CLOSER);
+                }
+                if(array_depth != 0) {
+                    return error(PARSER_MISSING_ARRAY_CLOSER);
+                }
             break;
 
             case STRING:
-
+                size += strlen((char*)ptr_offset(src, readhead)) + sizeof(char);
             break;
 
             case RATIO:
-
+                size += sizeof(int64_t) + sizeof(uint64_t);
             break;
 
             case CHAR:
@@ -92,7 +104,10 @@ Error create_package(PackageType package_type, void* src, Package* dest) {
             if(package_type.type_descriptor[i+1] == A_LIMITER) {
                 /* DO ARRAY STUFF */
             } else {
-                /* DO NORMAL STUFF */
+                size += sizeof_type(package_type.type_descriptor[i]);
+                memcpy(ptr_offset(dest, writehead), ptr_offset(src, readhead), sizeof_type(package_type.type_descriptor[i]));
+                readhead += sizeof_type(package_type.type_descriptor[i]);
+                writehead += sizeof_type(package_type.type_descriptor[i]);
             }
             break;
 
@@ -105,6 +120,8 @@ Error create_package(PackageType package_type, void* src, Package* dest) {
             
         }
     }
+
+
 
     free(buffer);
     return ALL_GOOD;
