@@ -3,6 +3,11 @@
 size_t ASSMTRL_PACKAGE_MAXSIZE = 1024;
 size_t ASSMTRL_MAXDEPTH = 64;
 
+Error error(Error errcode) {
+    std::cout << "Encountered error with code " << errcode << '\n';
+    return errcode;
+}
+
 void* ptr_offset(void* ptr, size_t offset) {
     return (void*)((uint64_t)ptr + offset);
 }
@@ -41,12 +46,17 @@ size_t sizeof_type(Type t) {
     return 0;
 }
 
-bool is_aligned(Type t, void* ptr) {
-    size_t eval = (uint64_t)ptr % sizeof_type(t);
-    if(eval != 0)
-        return false;
+size_t get_aligned_offset(Type t, void* ptr) {
+    size_t size = sizeof_type(t);
+    size_t overturn = (uint64_t)ptr % size;
+    size_t _return;
+
+    if(overturn == 0)
+        _return = 0;
     else
-        return true;
+        _return = size - overturn;
+
+    return _return;
 }
 
 size_t descriptorlen(Type* type_descriptor) {
@@ -61,10 +71,8 @@ Error create_package(PackageType package_type, void* src, Package* dest) {
                 + descriptorlen(package_type.type_descriptor)   // Descriptor string that describes the data inside this specific package_type
                 + sizeof(char);                                 // The null-termination character of the Cstring.
     
-    size_t  writehead = size,  // Offset bytes from dest to where we will write next.
-            readhead = 0;   // Offset bytes from src to where we have to read next.
-
-    Type* typebuffer = (Type*)malloc(ASSMTRL_MAXDEPTH);
+    size_t  writehead = size;   // Offset bytes from dest to where we will write next.
+    size_t  readhead = 0;       // Offset bytes from src to where we have to read next.
 
     // Control flow variables
     size_t struct_depth = 0;
@@ -76,7 +84,6 @@ Error create_package(PackageType package_type, void* src, Package* dest) {
         switch(package_type.type_descriptor[i]) {
             case STRUCT:
                 struct_depth++;
-                typebuffer[struct_depth + array_depth - 1] = STRUCT;
             break;
 
             case EOTS:
@@ -101,14 +108,32 @@ Error create_package(PackageType package_type, void* src, Package* dest) {
             case UINT32:
             case INT64:
             case INT32:
-            if(package_type.type_descriptor[i+1] == A_LIMITER) {
-                /* DO ARRAY STUFF */
-            } else {
-                size += sizeof_type(package_type.type_descriptor[i]);
-                memcpy(ptr_offset(dest, writehead), ptr_offset(src, readhead), sizeof_type(package_type.type_descriptor[i]));
-                readhead += sizeof_type(package_type.type_descriptor[i]);
-                writehead += sizeof_type(package_type.type_descriptor[i]);
-            }
+                // Array Computation
+                if(package_type.type_descriptor[i+1] == A_LIMITER) {
+                    Type typebuffer = package_type.type_descriptor[i]; 
+                    i += 2;
+
+                    int arrsize = atoi((char*)ptr_offset(package_type.type_descriptor, i));
+                    i += strlen((char*)ptr_offset(package_type.type_descriptor, i)) + sizeof(char);
+
+                    size += sizeof_type(typebuffer) * arrsize;
+                    if(size > ASSMTRL_PACKAGE_MAXSIZE) {
+                        return error(PARSER_MAXSIZE_EXCEEDED);
+                    }
+
+                    readhead += get_aligned_offset(typebuffer, ptr_offset(src, readhead));
+                }
+
+                // Regular Computation
+                else {
+                    size += sizeof_type(package_type.type_descriptor[i]);
+                    if(size > ASSMTRL_PACKAGE_MAXSIZE) {
+                        return error(PARSER_MAXSIZE_EXCEEDED);
+                    }
+                    memcpy(ptr_offset(dest, writehead), ptr_offset(src, readhead), sizeof_type(package_type.type_descriptor[i]));
+                    readhead += sizeof_type(package_type.type_descriptor[i]);
+                    writehead += sizeof_type(package_type.type_descriptor[i]);
+                }
             break;
 
             default:
@@ -121,7 +146,7 @@ Error create_package(PackageType package_type, void* src, Package* dest) {
         }
     }
 
-
+    size = writehead;
 
     free(buffer);
     return ALL_GOOD;

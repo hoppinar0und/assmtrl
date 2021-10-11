@@ -26,7 +26,7 @@ The package type is a struct holding a few informations on the kind of data that
 A PackageType may be created using the `create_package_type(char* package_type_name, char* type_descriptor)` function. It acts like a simple constructor.
 
 ### 1.3 Type Descriptors
-The type_descriptor (later saved as a TYPE* but it is essentially a char*) is a string that contains a series of characters that notate the information saved inside.
+The type_descriptor (later saved as a TYPE* but it is essentially a char*) is a string that contains a series of characters that notate the information saved inside. Read about syntax and limitations in the wiki.
 
 |Name|Character|Corresponding Type|
 |-|-|-|

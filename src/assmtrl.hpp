@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 
 /*
  *  Defines the maximum size a package can have in bytes. 
@@ -38,9 +39,13 @@ typedef enum : char {
 typedef enum : int {
   ALL_GOOD = -1,
   RECEIVER_HASH_CORRUPTED = -100,
+
   PARSER_INVALID_ELEMENT = -200,
-  PARSER_MISSING_STRUCT_CLOSER = -301,
-  PARSER_MISSING_ARRAY_CLOSER = -303,
+  PARSER_MAXSIZE_EXCEEDED = -201,
+  PARSER_MISSING_STRUCT_CLOSER = -202,
+  PARSER_MISSING_STRUCT_OPENER = -203,
+  PARSER_MISSING_ARRAY_OPENER = -204,
+  PARSER_MISSING_ARRAY_CLOSER = -205,
 } Error;
 
 typedef void* Package;
@@ -60,8 +65,8 @@ void* ptr_offset(void* ptr, size_t offset);
 /* Returns theoretical size of a field described by Type t */
 size_t sizeof_type(Type t);
 
-/* Returns whether or not a specific Type t would be correctly aligned at ptr */
-bool is_aligned(Type t, void* ptr);
+/* Returns offset to next aligned pointer */
+size_t get_aligned_offset(Type t, void* ptr);
 
 /* Returns how many Type elements are in the descriptor. Includes NULL termination. */
 size_t descriptorlen(Type* type_descriptor);
@@ -78,7 +83,7 @@ PackageType create_package_type(char* package_type_name, char* type_descriptor);
  *  Handle these typenames like you would librarly macros: PREFIXES AND FULL CAPS ARE ENCOURAGED!
  *  Also returns a status code once done.
  */
-Error create_package(PackageType package_type, void* src, Package* dest) {
+Error create_package(PackageType package_type, void* src, Package* dest);
 
 /*  Writes package onto a socket file descriptor
  *  Also returns a status code once done.
