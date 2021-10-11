@@ -3,6 +3,13 @@
 size_t ASSMTRL_PACKAGE_MAXSIZE = 1024;
 size_t ASSMTRL_MAXDEPTH = 64;
 
+size_t stralcpy(char* dest, const char* src) {
+    size_t size = strlen(src) + sizeof(char);
+    dest = (char*)malloc(size);
+    strcpy(dest, src);
+    return size;
+}
+
 Error error(Error errcode) {
     std::cout << "Encountered error with code " << errcode << '\n';
     return errcode;
@@ -48,7 +55,9 @@ size_t sizeof_type(Type t) {
 
 size_t get_aligned_offset(Type t, void* ptr) {
     size_t size = sizeof_type(t);
+    std::cout << "  Evaluating sizeof type t: " << size << '\n';
     size_t overturn = (uint64_t)ptr % size;
+    std::cout << "  Evaluating overturn: " << overturn << '\n';
     size_t _return;
 
     if(overturn == 0)
@@ -61,6 +70,13 @@ size_t get_aligned_offset(Type t, void* ptr) {
 
 size_t descriptorlen(Type* type_descriptor) {
     return strlen((char*)type_descriptor);
+}
+
+PackageType create_package_type(const char* package_type_name, const char* type_descriptor) {
+    PackageType _return;
+    stralcpy(_return.package_type_name, package_type_name);
+    stralcpy((char*)_return.type_descriptor, type_descriptor);
+    return _return;
 }
 
 Error create_package(PackageType package_type, void* src, Package* dest) {

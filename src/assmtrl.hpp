@@ -56,6 +56,9 @@ typedef struct {
   Type* type_descriptor;
 } PackageType;
 
+/* Allocates the length of src to dest and copies the contents of src to dest */
+size_t stralcpy(char* dest, const char* src);
+
 /* Prints Error and returns errcode */
 Error error(Error errcode);
 
@@ -75,7 +78,7 @@ size_t descriptorlen(Type* type_descriptor);
 size_t calc_length(Type* type_descriptor);
 
 /* Returns struct holding information for a package type */
-PackageType create_package_type(char* package_type_name, char* type_descriptor);
+PackageType create_package_type(const char* package_type_name, const char* type_descriptor);
 
 /*
  *  Store package from the data stored at src_ptr into dest_ptr by using type_descriptor as a descriptor of what data lies there
