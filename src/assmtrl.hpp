@@ -77,16 +77,16 @@ size_t descriptorlen(Type* type_descriptor);
 /* Returns the theoretical length of a struct or field described by type_descriptor */
 size_t calc_length(Type* type_descriptor);
 
-/* Returns struct holding information for a package type */
+/* Returns struct holding information for a package type
+ * Must be destroyed to avoid memory leaks. Use destroy_type(2);
+ */
 PackageType create_package_type(const char* package_type_name, const char* type_descriptor);
 
-/*
- *  Store package from the data stored at src_ptr into dest_ptr by using type_descriptor as a descriptor of what data lies there
- *  package_type_name refers to the string that singularly describes this typename.
- *  Handle these typenames like you would librarly macros: PREFIXES AND FULL CAPS ARE ENCOURAGED!
- *  Also returns a status code once done.
+/* Create Package from SRC and package_type. Must be destroyed to avoid memory leaks.
+ * Use destroy_package(2)
+ * Also returns a status code once done.
  */
-Error create_package(PackageType package_type, void* src, Package* dest);
+Package create_package(PackageType package_type, void* src);
 
 /*  Writes package onto a socket file descriptor
  *  Also returns a status code once done.

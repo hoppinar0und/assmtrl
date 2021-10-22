@@ -12,6 +12,7 @@ size_t stralcpy(char* dest, const char* src) {
 
 Error error(Error errcode) {
     std::cout << "Encountered error with code " << errcode << '\n';
+    exit(errcode);
     return errcode;
 }
 
@@ -75,17 +76,19 @@ PackageType create_package_type(const char* package_type_name, const char* type_
     return _return;
 }
 
-Error create_package(PackageType package_type, void* src, Package* dest) {
-
-    void* buffer = malloc(ASSMTRL_PACKAGE_MAXSIZE);
+Package create_package(PackageType package_type, void* src) {
+    std::cout << "Creating package..." << '\n';
+    std::cout << " dest has capacity of " << ASSMTRL_PACKAGE_MAXSIZE << '\n';
+    Package dest = malloc(ASSMTRL_PACKAGE_MAXSIZE);
 
     size_t size = sizeof(uint64_t)                              // Initial eight bytes of package which holds the total size
                 + strlen(package_type.package_type_name)        // Cstring that holds the name of the package type
                 + descriptorlen(package_type.type_descriptor)   // Descriptor string that describes the data inside this specific package_type
                 + sizeof(char);                                 // The null-termination character of the Cstring.
-    
-    size_t  writehead = size;   // Offset bytes from dest to where we will write next.
-    size_t  readhead = 0;       // Offset bytes from src to where we have to read next.
+    std::cout << " size is currently " << size << '\n';
+
+    size_t writehead = size;   // Offset bytes from dest to where we will write next.
+    size_t readhead = 0;       // Offset bytes from src to where we have to read next.
 
     // Control flow variables
     size_t struct_depth = 0; // Unused
@@ -93,10 +96,13 @@ Error create_package(PackageType package_type, void* src, Package* dest) {
     bool exit_condition = false;
 
     for(int i = 0; i < descriptorlen(package_type.type_descriptor) || exit_condition; i++) {
+        std::cout << "  readhead " << readhead << '\n';
+        std::cout << " writehead " << writehead << '\n';
+        std::cout << " ENTERING SWITCH. CURRENT TYPE IS " << package_type.type_descriptor[i] << '\n';
         switch(package_type.type_descriptor[i]) {
             case STRUCT:
                 if(!(package_type.type_descriptor[i+1] != S_DELIMITER)) {
-                    return error(PARSER_MISSING_STRUCT_DELIMITER);
+                    error(PARSER_MISSING_STRUCT_DELIMITER);
                 }
 
                 else {
@@ -109,15 +115,17 @@ Error create_package(PackageType package_type, void* src, Package* dest) {
             break;
 
             case STRING:
+            {
                 void* offset_src = ptr_offset(src, readhead);
                 void* offset_dest = ptr_offset(dest, writehead);
                 Type typebuf = package_type.type_descriptor[i];
 
-                size_t sizebuf = strlen(offset_src) + sizeof(char);
+                size_t sizebuf = strlen((char*)offset_src) + sizeof(char);
 
                 memcpy(offset_dest, offset_src, sizebuf);
                 writehead += sizebuf;
                 readhead += sizebuf;
+            }
             break;
 
             case RATIO:
@@ -129,6 +137,7 @@ Error create_package(PackageType package_type, void* src, Package* dest) {
             case UINT32:
             case INT64:
             case INT32:
+            {
                 // Array Computation
                 if(package_type.type_descriptor[i+1] == A_LIMITER) {
                     Type typebuf = package_type.type_descriptor[i];
@@ -165,11 +174,15 @@ Error create_package(PackageType package_type, void* src, Package* dest) {
                     writehead += sizebuf;
                     readhead += readhead_alignment + sizebuf;
                 }
+            }
+            break;
 
+            case A_DELIMITER:
+            case S_DELIMITER:
             break;
 
             default:
-                return error(PARSER_INVALID_ELEMENT);
+                error(PARSER_INVALID_ELEMENT);
                 break;
         }
 
@@ -178,10 +191,11 @@ Error create_package(PackageType package_type, void* src, Package* dest) {
         }
     }
 
-    size = writehead;
+    size += writehead;
 
-    free(buffer);
-    return ALL_GOOD;
+    memcpy(dest, &size, sizeof(uint64_t));
+
+    return dest;
 }
 
 Error send_package(socket_t socket_fd, Package package) {
