@@ -55,16 +55,12 @@ size_t sizeof_type(Type t) {
 
 size_t get_aligned_offset(Type t, void* ptr) {
     size_t size = sizeof_type(t);
-    std::cout << "  Evaluating sizeof type t: " << size << '\n';
     size_t overturn = (uint64_t)ptr % size;
-    std::cout << "  Evaluating overturn: " << overturn << '\n';
     size_t _return;
-
     if(overturn == 0)
         _return = 0;
     else
         _return = size - overturn;
-
     return _return;
 }
 
@@ -80,6 +76,7 @@ PackageType create_package_type(const char* package_type_name, const char* type_
 }
 
 Error create_package(PackageType package_type, void* src, Package* dest) {
+
     void* buffer = malloc(ASSMTRL_PACKAGE_MAXSIZE);
 
     size_t size = sizeof(uint64_t)                              // Initial eight bytes of package which holds the total size
@@ -91,28 +88,36 @@ Error create_package(PackageType package_type, void* src, Package* dest) {
     size_t  readhead = 0;       // Offset bytes from src to where we have to read next.
 
     // Control flow variables
-    size_t struct_depth = 0;
-    size_t array_depth = 0;
-    bool eval_array = false;
-    Type arrytype;
+    size_t struct_depth = 0; // Unused
+    size_t array_depth = 0; // Unused
+    bool exit_condition = false;
 
-    for(int i = 0; i < descriptorlen(package_type.type_descriptor); i++) {
+    for(int i = 0; i < descriptorlen(package_type.type_descriptor) || exit_condition; i++) {
         switch(package_type.type_descriptor[i]) {
             case STRUCT:
-                struct_depth++;
+                if(!(package_type.type_descriptor[i+1] != S_DELIMITER)) {
+                    return error(PARSER_MISSING_STRUCT_DELIMITER);
+                }
+
+                else {
+                    i++;
+                }
             break;
 
             case EOTS:
-                if(struct_depth != 0) {
-                    return error(PARSER_MISSING_STRUCT_CLOSER);
-                }
-                if(array_depth != 0) {
-                    return error(PARSER_MISSING_ARRAY_CLOSER);
-                }
+                exit_condition = true;
             break;
 
             case STRING:
-                size += strlen((char*)ptr_offset(src, readhead)) + sizeof(char);
+                void* offset_src = ptr_offset(src, readhead);
+                void* offset_dest = ptr_offset(dest, writehead);
+                Type typebuf = package_type.type_descriptor[i];
+
+                size_t sizebuf = strlen(offset_src) + sizeof(char);
+
+                memcpy(offset_dest, offset_src, sizebuf);
+                writehead += sizebuf;
+                readhead += sizebuf;
             break;
 
             case RATIO:
@@ -126,30 +131,41 @@ Error create_package(PackageType package_type, void* src, Package* dest) {
             case INT32:
                 // Array Computation
                 if(package_type.type_descriptor[i+1] == A_LIMITER) {
-                    Type typebuffer = package_type.type_descriptor[i]; 
-                    i += 2;
+                    Type typebuf = package_type.type_descriptor[i];
+                    size_t sizebuf = sizeof_type(typebuf);
+                    size_t readhead_alignment = get_aligned_offset(typebuf, ptr_offset(src, readhead));
+                    size_t aligned_readhead = readhead + readhead_alignment;
 
-                    int arrsize = atoi((char*)ptr_offset(package_type.type_descriptor, i));
-                    i += strlen((char*)ptr_offset(package_type.type_descriptor, i)) + sizeof(char);
+                    i+=2; // Jump to beginning of WHAT SHOULD BE A STRING THAT DENOTES LENGTH. THIS SIMPLY ASSUMES!
+                    size_t arrlen = atoi((char*)&package_type.type_descriptor[i]);
+                    i += strlen((char*)&package_type.type_descriptor[i]);
 
-                    size += sizeof_type(typebuffer) * arrsize;
-                    if(size > ASSMTRL_PACKAGE_MAXSIZE) {
-                        return error(PARSER_MAXSIZE_EXCEEDED);
+                    for(int j = 0; j < arrlen; j++) {
+                        void* offset_src  = ptr_offset(src, aligned_readhead);
+                        void* offset_dest = ptr_offset(dest, writehead);
+
+                        memcpy(offset_dest, offset_src, sizebuf);
+                        writehead += sizebuf;
+                        aligned_readhead += sizebuf;
                     }
 
-                    readhead += get_aligned_offset(typebuffer, ptr_offset(src, readhead));
+                    readhead = aligned_readhead;
                 }
 
                 // Regular Computation
                 else {
-                    size += sizeof_type(package_type.type_descriptor[i]);
-                    if(size > ASSMTRL_PACKAGE_MAXSIZE) {
-                        return error(PARSER_MAXSIZE_EXCEEDED);
-                    }
-                    memcpy(ptr_offset(dest, writehead), ptr_offset(src, readhead), sizeof_type(package_type.type_descriptor[i]));
-                    readhead += sizeof_type(package_type.type_descriptor[i]);
-                    writehead += sizeof_type(package_type.type_descriptor[i]);
+                    Type typebuf = package_type.type_descriptor[i];
+                    size_t sizebuf = sizeof_type(typebuf);
+                    size_t readhead_alignment = get_aligned_offset(typebuf, ptr_offset(src, readhead));
+                    size_t aligned_readhead = readhead + readhead_alignment;
+                    void* offset_src  = ptr_offset(src, aligned_readhead);
+                    void* offset_dest = ptr_offset(dest, writehead);
+
+                    memcpy(offset_dest, offset_src, sizebuf);
+                    writehead += sizebuf;
+                    readhead += readhead_alignment + sizebuf;
                 }
+
             break;
 
             default:
@@ -165,10 +181,6 @@ Error create_package(PackageType package_type, void* src, Package* dest) {
     size = writehead;
 
     free(buffer);
-    return ALL_GOOD;
-}
-
-Error create_package(char* package_type_name, Type* type_descriptor, void* src_ptr, Package* dest_ptr) {
     return ALL_GOOD;
 }
 

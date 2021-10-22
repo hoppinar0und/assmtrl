@@ -1,7 +1,7 @@
 # ASSMTRL
 
 ## Description
-ASSMTRL stands for Arbitrary Struct Serialiser and Multiplexed Transceiver Library. It is a library capable of serialising and deserialising arbitrary struct and sending them onto a file descriptor as well as receiving and handling these structures from multiple file descriptors.
+ASSMTRL stands for Arbitrary Struct Serialiser and Multiplexed Transceiver Library. It is a library capable of serialising and deserialising arbitrary structs and sending them onto a file descriptor as well as receiving and handling these structures from multiple file descriptors.
 
 PLEASE NOTE THAT IN ITS CURRENT STATE ASSMTRL IS NON-FUNCTIONAL AND IN DEVELOPMENT! DO NOT ATTEMPT TO FOLLOW THE INSTRUCTIONS BELOW!
 
