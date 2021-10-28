@@ -1,63 +1,145 @@
 #include "assmtrl.hpp"
 
-size_t ASSMTRL_PACKAGE_MAXSIZE = 1024;
-size_t ASSMTRL_MAXDEPTH = 64;
+//////////// PACKAGE TYPE FUNCTIONS ////////////
 
-size_t stralcpy(char* dest, const char* src) {
-    size_t size = strlen(src) + sizeof(char);
-    dest = (char*)malloc(size);
-    strcpy(dest, src);
-    return size;
+PackageType::PackageType(const char* name, const TypeDescriptor descriptor) {
+    this->name = stralcpy(name);
+    this->descriptor = descralcpy(descriptor);
 }
 
-Error error(Error errcode) {
-    std::cout << "Encountered error with code " << errcode << '\n';
-    return errcode;
+PackageType::PackageType(const PackageType &type) {
+    this->name = stralcpy(type.name);
+    this->descriptor = descralcpy(type.descriptor);
 }
+
+PackageType::~PackageType() {
+    free(name);
+    free(descriptor);
+}
+
+
+//////////// PACKAGE FUNCTIONS ////////////
+
+Package::Package(PackageType type, void* SRC) : type(type) {
+    std::cout << "Package constructor invoked" << '\n';
+    std::cout << "Initial conditions:" << '\n';
+    std::cout << " type {" << '\n';
+    std::cout << "  name = \"" << type.name << "\"," << '\n';
+    std::cout << "  descriptor = \"" << (char*)type.descriptor << "\"," << '\n';
+    std::cout << " }" << '\n';
+    std::cout << " SRC is @ " << SRC << '\n' << '\n';
+
+    std::cout << "Calculating size... ";
+    size_t fullsize = descriptor_calc_size(type);
+    std::cout << fullsize << '\n';
+    std::cout << "Allocating \'data\' @ ";
+    data = malloc(fullsize);
+    std::cout << data << '\n';
+
+    size_t readhead = 0, writehead = 0;
+}
+
+Package::~Package() {
+    std::cout << "Package destructor invoked" << '\n';
+
+}
+
+//////////// HELPER FUNCTIONS ////////////
 
 void* ptr_offset(void* ptr, size_t offset) {
     return (void*)((uint64_t)ptr + offset);
 }
 
+char* stralcpy(const char* SRC) {
+    char* _return = (char*)malloc(strlen(SRC) + sizeof(char));
+    strcpy(_return, SRC);
+    return _return;
+}
+
+size_t descriptorlen(TypeDescriptor type_descriptor) {
+    return strlen((char*)type_descriptor);
+}
+
+TypeDescriptor descriptorcpy(TypeDescriptor DEST, const TypeDescriptor SRC) {
+    strcpy((char*)DEST, (char*)SRC);
+    return DEST;
+}
+
+TypeDescriptor descralcpy(const TypeDescriptor SRC) {
+    TypeDescriptor _return = (TypeDescriptor)malloc(descriptorlen(SRC));
+    descriptorcpy(_return, SRC);
+    return _return;
+}
+
+TypeDescriptor descralcpy(const char* SRC) {
+    TypeDescriptor _return = (TypeDescriptor)malloc(strlen(SRC) + sizeof(char));
+    strcpy((char*)_return, SRC);
+    return _return;
+}
+
 size_t sizeof_type(Type t) {
     switch(t) {
-        case 'C':
+        STRUCT:
+            return 0;
+        break;
+
+        S_LIMITER:
+            return 0;
+        break;
+
+        S_DELIMITER:
+            return 0;
+        break;
+
+        A_DELIMITER:
+            return 0;
+        break;
+
+        A_LIMITER:
+            return 0;
+        break;
+
+        STRING:
+            return 0;
+        break;
+
+        CHAR:
             return sizeof(char);
-            break;
+        break;
 
-        case 'U':
+        UINT64:
             return sizeof(uint64_t);
-            break;
+        break;
 
-        case 'u':
+        UINT32:
             return sizeof(uint32_t);
-            break;
+        break;
 
-        case 'I':
+        INT64:
             return sizeof(int64_t);
-            break;
+        break;
 
-        case 'i':
+        INT32:
             return sizeof(int32_t);
-            break;
+        break;
 
-        case 'R':
+        RATIO:
             return sizeof(int64_t) + sizeof(uint64_t);
-            break;
+        break;
+
+        EOTS:
+            return 0;
+        break;
 
         default:
-            return 0;
-            break;
+            std::cout << "!!ERROR HERE!!";
     }
-
     return 0;
 }
 
 size_t get_aligned_offset(Type t, void* ptr) {
     size_t size = sizeof_type(t);
-    std::cout << "  Evaluating sizeof type t: " << size << '\n';
     size_t overturn = (uint64_t)ptr % size;
-    std::cout << "  Evaluating overturn: " << overturn << '\n';
     size_t _return;
 
     if(overturn == 0)
@@ -68,156 +150,22 @@ size_t get_aligned_offset(Type t, void* ptr) {
     return _return;
 }
 
-size_t descriptorlen(Type* type_descriptor) {
-    return strlen((char*)type_descriptor);
-}
+size_t descriptor_calc_size(PackageType ptype) {
+    std::cout << "with " << (char*)ptype.descriptor << ' ';
+    size_t sizebuffer = 0;
 
-PackageType create_package_type(const char* type_name, const char* type_descriptor) {
-    PackageType _return;
-    std::cout << stralcpy(_return.type_name, type_name) << '\n';
-    std::cout << stralcpy((char*)_return.type_descriptor, type_descriptor) << '\n';
-    return _return;
-}
+    sizebuffer += strlen(ptype.name) + sizeof(char);
+    std::cout << strlen(ptype.name) + sizeof(char) << " + ";
+    sizebuffer += descriptorlen(ptype.descriptor) + sizeof(char);
+    std::cout << descriptorlen(ptype.descriptor) + sizeof(char);
 
-Error create_package(PackageType package_type, void* src, Package dest) {
-    void* buffer = malloc(ASSMTRL_PACKAGE_MAXSIZE);
-
-    size_t size = sizeof(uint64_t)                              // Initial eight bytes of package which holds the total size
-                + strlen(package_type.type_name)        // Cstring that holds the name of the package type
-                + descriptorlen(package_type.type_descriptor)   // Descriptor string that describes the data inside this specific package_type
-                + sizeof(char);                                 // The null-termination character of the Cstring.
-    
-    size_t  writehead = size;   // Offset bytes from dest to where we will write next.
-    size_t  readhead = 0;       // Offset bytes from src to where we have to read next.
-
-    // Control flow variables
-    size_t struct_depth = 0;
-    size_t array_depth = 0;
-    bool eval_array = false;
-    Type arrytype;
-
-    for(int i = 0; i < descriptorlen(package_type.type_descriptor); i++) {
-        switch(package_type.type_descriptor[i]) {
-            case STRUCT:
-                struct_depth++;
-            break;
-
-            case EOTS:
-                if(struct_depth != 0) {
-                    return error(PARSER_MISSING_STRUCT_CLOSER);
-                }
-                if(array_depth != 0) {
-                    return error(PARSER_MISSING_ARRAY_CLOSER);
-                }
-            break;
-
-            case STRING:
-            {
-                void* dest_offset = ptr_offset(dest, writehead);
-                void* src_offset = ptr_offset(dest, readhead);
-
-                size_t typesize = strlen((char*)dest_offset) + sizeof(char);
-                size += typesize;
-                if(size > ASSMTRL_PACKAGE_MAXSIZE) {
-                    return error(PARSER_MAXSIZE_EXCEEDED);
-                }
-
-                memcpy(dest_offset, src_offset, typesize);
-                readhead += typesize;
-                writehead += typesize;
-            }
-            break;
-
-            case RATIO:
-            case CHAR:
-            case UINT64:
-            case UINT32:
-            case INT64:
-            case INT32:
-            {
-                // Array Computation
-                if(package_type.type_descriptor[i+1] == A_LIMITER) {
-                    array_depth++;
-                    // Preprocess
-                    Type type = package_type.type_descriptor[i];
-                    size_t typesize = sizeof_type(type);
-                    size_t alignment = get_aligned_offset(type, ptr_offset(src, readhead));
-                    readhead += alignment;
-
-                    // how many elements?
-                    i +=2;
-                    size_t arrsize = atoi((char*)ptr_offset(package_type.type_descriptor, i));
-
-                    // Sizecheck
-                    size += typesize * arrsize;
-                    if(size > ASSMTRL_PACKAGE_MAXSIZE) {
-                        return error(PARSER_MAXSIZE_EXCEEDED);
-                    }
-
-                    // This section actually does the computing!
-                    for(int j = 0; j < arrsize; j++) {
-                        void* dest_offset = ptr_offset(dest, writehead);
-                        void* src_offset = ptr_offset(dest, readhead);
-                        memcpy(dest_offset, src_offset, typesize);
-                        readhead += typesize;
-                        writehead += typesize;
-                    }
-                }
-
-                // Regular Computation
-                else {
-                    Type type = package_type.type_descriptor[i];
-                    size_t typesize = sizeof_type(type);
-                    size_t alignment = get_aligned_offset(type, ptr_offset(src, readhead));
-                    readhead += alignment;
-
-                    size += typesize;
-                    if(size > ASSMTRL_PACKAGE_MAXSIZE) {
-                        return error(PARSER_MAXSIZE_EXCEEDED);
-                    }
-
-                    void* dest_offset = ptr_offset(dest, writehead);
-                    void* src_offset = ptr_offset(dest, readhead);
-                    memcpy(dest_offset, src_offset, typesize);
-                    readhead += typesize;
-                    writehead += typesize;
-                }
-            }
-            break;
-
-            case A_LIMITER:
-            case S_LIMITER:
-            break;
-            case A_DELIMITER:
-                array_depth--;
-            break;
-            case S_DELIMITER:
-                struct_depth--;
-            break;
-
-            default:
-                std::cout << "AT I = " << i << " AND ELEMENT = " << (short)package_type.type_descriptor[i] << ": ";
-                return error(PARSER_INVALID_ELEMENT);
-                break;
-        }
+    for(int i = 0; i < descriptorlen(ptype.descriptor); i++) {
+        std::cout << (char)ptype.descriptor[i];
+        sizebuffer += sizeof_type(ptype.descriptor[i]);
+        std::cout << " + " << sizeof_type(ptype.descriptor[i]);
     }
 
-    size = writehead;
+    std::cout << " = ";
 
-    memcpy(dest, &size, sizeof(uint64_t));
-    writehead = sizeof(uint64_t);
-    strcpy((char*)ptr_offset(dest, writehead), package_type.type_name);
-    writehead = strlen(package_type.type_name);
-    strcpy((char*)ptr_offset(dest, writehead), (char*)package_type.type_descriptor);
-
-    free(buffer);
-    return ALL_GOOD;
-}
-
-Error create_package(char* type_name, Type* type_descriptor, void* src_ptr, Package* dest_ptr) {
-    return ALL_GOOD;
-}
-
-Error send_package(socket_t socket_fd, Package package) {
-    return ALL_GOOD;
+    return sizebuffer;
 }
