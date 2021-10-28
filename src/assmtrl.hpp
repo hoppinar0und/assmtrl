@@ -52,7 +52,7 @@ typedef void* Package;
 
 /* This struct holds all relevant information to a package type. */
 typedef struct {
-  char* package_type_name;
+  char* type_name;
   Type* type_descriptor;
 } PackageType;
 
@@ -78,15 +78,15 @@ size_t descriptorlen(Type* type_descriptor);
 size_t calc_length(Type* type_descriptor);
 
 /* Returns struct holding information for a package type */
-PackageType create_package_type(const char* package_type_name, const char* type_descriptor);
+PackageType create_package_type(const char* type_name, const char* type_descriptor);
 
 /*
  *  Store package from the data stored at src_ptr into dest_ptr by using type_descriptor as a descriptor of what data lies there
- *  package_type_name refers to the string that singularly describes this typename.
- *  Handle these typenames like you would librarly macros: PREFIXES AND FULL CAPS ARE ENCOURAGED!
+ *  type_name refers to the string that singularly describes this typename.
+ *  Handle these typenames like you would library macros: PREFIXES AND FULL CAPS ARE ENCOURAGED!
  *  Also returns a status code once done.
  */
-Error create_package(PackageType package_type, void* src, Package* dest);
+Error create_package(PackageType package_type, void* src, Package dest);
 
 /*  Writes package onto a socket file descriptor
  *  Also returns a status code once done.
@@ -100,6 +100,6 @@ void set_maxsize(size_t maxsize);
  *  Note that this buffer will be allocated using malloc and must be freed. Consider specifying PACKAGE_MAXSIZE to determine what the maximum size of a package can be.
  *  Also returns a status code once done.
  */
-int retrieve_package(char* package_type_name, socket_t socket_fd, void* buffer);
+int retrieve_package(char* type_name, socket_t socket_fd, void* buffer);
 
 #endif //ASSMTRL_H
