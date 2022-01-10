@@ -50,11 +50,11 @@ public:
   char* name;
   TypeDescriptor descriptor;
 
+  // Copy Constructor
+  PackageType(const PackageType &type);
+
   // Constructor - Read the documention on what a TypeDescriptor is.
   PackageType(const char* name, const TypeDescriptor descriptor);
-
-  // Constructor that copies the type element.
-  PackageType(const PackageType &type);
 
   ~PackageType();
 };
@@ -67,6 +67,7 @@ public:
   void* data;
   PackageType type;
 
+  // Constructor
   Package(PackageType type, void* SRC);
   ~Package();
 };
@@ -104,16 +105,16 @@ public:
 char* stralcpy(const char* SRC);
 
 // Returns pointer offset by 'offset' from ptr
-void* ptr_offset(void* ptr, size_t offset);
+void* ptr_offset(const void* ptr, const size_t offset);
 
 // Returns theoretical size of a field described by a Type t
-size_t sizeof_type(Type t);
+size_t sizeof_type(const Type t, void* ptr);
 
 // Returns offset to next aligned pointer
-size_t get_aligned_offset(Type t, void* ptr);
+size_t get_aligned_offset(const Type t, void* ptr);
 
 // Returns how many Type elements are in the descriptor.
-size_t descriptorlen(TypeDescriptor type_descriptor);
+size_t descriptorlen(const TypeDescriptor type_descriptor);
 
 // Copies contents of TypeDescriptor DEST to TypeDescriptor SRC
 TypeDescriptor descriptorcpy(TypeDescriptor DEST, const TypeDescriptor SRC);
@@ -124,7 +125,10 @@ TypeDescriptor descralcpy(const TypeDescriptor SRC);
 // Returns TypeDescriptor on the heap with contents from SRC
 TypeDescriptor descralcpy(const char* SRC);
 
+// Returns cstring with the name of the type
+const char* type_symbol(const Type t);
+
 // Returns the theoretical length of the package described by the PackageType
-size_t descriptor_calc_size(PackageType descirptor);
+size_t descriptor_calc_size(const PackageType descirptor, void* ptr);
 
 #endif //ASSMTRL_H

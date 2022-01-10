@@ -30,11 +30,12 @@ Package::Package(PackageType type, void* SRC) : type(type) {
     std::cout << " SRC is @ " << SRC << '\n' << '\n';
 
     std::cout << "Calculating size... ";
-    size_t fullsize = descriptor_calc_size(type);
+    size_t fullsize = descriptor_calc_size(type, SRC);
     std::cout << fullsize << '\n';
     std::cout << "Allocating \'data\' @ ";
     data = malloc(fullsize);
     std::cout << data << '\n';
+    memcpy(data, &fullsize, sizeof(uint64_t));
 
     size_t readhead = 0, writehead = 0;
 }
@@ -46,7 +47,7 @@ Package::~Package() {
 
 //////////// HELPER FUNCTIONS ////////////
 
-void* ptr_offset(void* ptr, size_t offset) {
+void* ptr_offset(const void* ptr, const size_t offset) {
     return (void*)((uint64_t)ptr + offset);
 }
 
@@ -56,7 +57,7 @@ char* stralcpy(const char* SRC) {
     return _return;
 }
 
-size_t descriptorlen(TypeDescriptor type_descriptor) {
+size_t descriptorlen(const TypeDescriptor type_descriptor) {
     return strlen((char*)type_descriptor);
 }
 
@@ -66,7 +67,7 @@ TypeDescriptor descriptorcpy(TypeDescriptor DEST, const TypeDescriptor SRC) {
 }
 
 TypeDescriptor descralcpy(const TypeDescriptor SRC) {
-    TypeDescriptor _return = (TypeDescriptor)malloc(descriptorlen(SRC));
+    TypeDescriptor _return = (TypeDescriptor)malloc(descriptorlen(SRC) + sizeof(char));
     descriptorcpy(_return, SRC);
     return _return;
 }
@@ -77,71 +78,145 @@ TypeDescriptor descralcpy(const char* SRC) {
     return _return;
 }
 
-size_t sizeof_type(Type t) {
+const char* type_symbol(const Type t) {
     switch(t) {
-        STRUCT:
+        case STRUCT:
+            return "STRUCT";
+        break;
+
+        case S_LIMITER:
+            return "S_LIMITER";
+        break;
+
+        case S_DELIMITER:
+            return "S_DELIMITER";
+        break;
+
+        case A_DELIMITER:
+            return "A_DELIMITER";
+        break;
+
+        case A_LIMITER:
+            return "A_LIMITER";
+        break;
+
+        case STRING:
+            return "STRING";
+        break;
+
+        case CHAR:
+            return "CHAR";
+        break;
+
+        case UINT64:
+            return "UINT64_T";
+        break;
+
+        case UINT32:
+            return "UINT32_T";
+        break;
+
+        case INT64:
+            return "INT64_T";
+        break;
+
+        case INT32:
+            return "INT32_T";
+        break;
+
+        case RATIO:
+            return "RATIO";
+        break;
+
+        case EOTS:
+            return "EOTS";
+        break;
+
+        default:
+            std::cout << "!!ERROR HERE!! CHAR EXAMINED WAS >>" << (char)t << "<< !!";
+    }
+    return NULL;
+}
+
+size_t sizeof_type(const Type t, void* ptr) {
+    switch(t) {
+        case STRUCT:
             return 0;
         break;
 
-        S_LIMITER:
+        case S_LIMITER:
             return 0;
         break;
 
-        S_DELIMITER:
+        case S_DELIMITER:
             return 0;
         break;
 
-        A_DELIMITER:
+        case A_DELIMITER:
             return 0;
         break;
 
-        A_LIMITER:
+        case A_LIMITER:
             return 0;
         break;
 
-        STRING:
-            return 0;
+        case STRING:
+            std::cout << "ADDITION INFO DUE TO STRING CASE: \n" << "  String contains: \"" << (char*)ptr << "\"\n";
+            return strlen((char*)ptr) + sizeof(char);
         break;
 
-        CHAR:
+        case CHAR:
             return sizeof(char);
         break;
 
-        UINT64:
+        case UINT64:
             return sizeof(uint64_t);
         break;
 
-        UINT32:
+        case UINT32:
             return sizeof(uint32_t);
         break;
 
-        INT64:
+        case INT64:
             return sizeof(int64_t);
         break;
 
-        INT32:
+        case INT32:
             return sizeof(int32_t);
         break;
 
-        RATIO:
+        case RATIO:
             return sizeof(int64_t) + sizeof(uint64_t);
         break;
 
-        EOTS:
+        case EOTS:
             return 0;
         break;
 
         default:
-            std::cout << "!!ERROR HERE!!";
+            std::cout << "!!ERROR HERE!! CHAR EXAMINED WAS >>" << (char)t << "<< !!";
     }
     return 0;
 }
 
-size_t get_aligned_offset(Type t, void* ptr) {
-    size_t size = sizeof_type(t);
-    size_t overturn = (uint64_t)ptr % size;
-    size_t _return;
+size_t get_aligned_offset(const Type t, void* ptr) {
+    size_t size;
+    size_t overturn;
+    size_t _return = 0;
 
+    // Strings must be handled differently
+    if(t == STRING)
+        size = 8;
+    else
+        size = sizeof_type(t, ptr);
+
+    // Evaluate whether or not we can calculate the overturn.
+    if(size < 1)
+        _return = 0;
+    else
+        size_t overturn = (uint64_t)ptr % size;
+
+    // Evaluate the overturn.
     if(overturn == 0)
         _return = 0;
     else
@@ -150,22 +225,36 @@ size_t get_aligned_offset(Type t, void* ptr) {
     return _return;
 }
 
-size_t descriptor_calc_size(PackageType ptype) {
-    std::cout << "with " << (char*)ptype.descriptor << ' ';
-    size_t sizebuffer = 0;
+size_t descriptor_calc_size(const PackageType ptype, void* ptr) {
+    std::cout << std::endl;
 
-    sizebuffer += strlen(ptype.name) + sizeof(char);
-    std::cout << strlen(ptype.name) + sizeof(char) << " + ";
-    sizebuffer += descriptorlen(ptype.descriptor) + sizeof(char);
-    std::cout << descriptorlen(ptype.descriptor) + sizeof(char);
+    size_t size = 0;
+    size_t readhead = 0;
+
+    size += strlen(ptype.name) + sizeof(char);
+    size += descriptorlen(ptype.descriptor) + sizeof(char);
 
     for(int i = 0; i < descriptorlen(ptype.descriptor); i++) {
-        std::cout << (char)ptype.descriptor[i];
-        sizebuffer += sizeof_type(ptype.descriptor[i]);
-        std::cout << " + " << sizeof_type(ptype.descriptor[i]);
+        std::cout << "with " << type_symbol(ptype.descriptor[i]) << '\n';
+
+        if(ptype.descriptor[i] == STRUCT) {
+            readhead += get_aligned_offset(UINT64, ptr);
+            void* aligned_ptr = ptr_offset(ptr, readhead);
+        }
+
+        else {
+            readhead += get_aligned_offset(ptype.descriptor[i], ptr);
+            void* aligned_ptr = ptr_offset(ptr, readhead);
+        }
+
+        size_t sizebuffer = sizeof_type(ptype.descriptor[i], ptr);
+        readhead += sizebuffer;
+        size += sizebuffer;
+
+        std::cout << "  readhead @ " << readhead << '\n';
+        std::cout << "  sizebuffer = " << sizebuffer << '\n';
+        std::cout << "  size = " << size << '\n';
     }
 
-    std::cout << " = ";
-
-    return sizebuffer;
+    return size;
 }
